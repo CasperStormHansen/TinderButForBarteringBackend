@@ -11,8 +11,8 @@ var products = app.MapGroup("/products");
 products.MapGet("/", async (ProductDb db) =>
     await db.Products.ToListAsync());
 
-products.MapGet("/sold", async (ProductDb db) =>
-    await db.Products.Where(t => t.IsSold).ToListAsync());
+products.MapGet("/return", async (ProductDb db) =>
+    await db.Products.Where(t => t.RequiresSomethingInReturn).ToListAsync());
 
 products.MapGet("/{id}", async (int id, ProductDb db) =>
     await db.Products.FindAsync(id)
@@ -34,12 +34,14 @@ products.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) =>
 
     if (product is null) return Results.NotFound();
 
-    product.OwnerId = inputProduct.OwnerId;
-    product.Category = inputProduct.Category;
+    //product.OwnerId = inputProduct.OwnerId;
+    //product.Category = inputProduct.Category;
+    product.ProductTitle = inputProduct.ProductTitle;
     product.Description = inputProduct.Description;
-    product.IsSold = inputProduct.IsSold;
+    //product.IsSold = inputProduct.IsSold;
+    product.RequiresSomethingInReturn = inputProduct.RequiresSomethingInReturn;
 
-    await db.SaveChangesAsync();
+await db.SaveChangesAsync();
      
     return Results.NoContent();
 });

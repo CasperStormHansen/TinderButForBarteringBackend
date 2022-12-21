@@ -11,8 +11,9 @@
         //public bool IsSold { get; set; }
 
 
-        public string ProductTitle { get; set; }
+        public string Title { get; set; }
         public string Description { get; set; }
         public bool RequiresSomethingInReturn { get; set; }
+        public byte[] PrimaryPictureData { get; set; }
     }
 }

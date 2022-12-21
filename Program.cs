@@ -11,21 +11,21 @@ var products = app.MapGroup("/products");
 products.MapGet("/", async (ProductDb db) =>
     await db.Products.ToListAsync());
 
-products.MapGet("/return", async (ProductDb db) =>
-    await db.Products.Where(t => t.RequiresSomethingInReturn).ToListAsync());
+//products.MapGet("/return", async (ProductDb db) =>
+//    await db.Products.Where(t => t.RequiresSomethingInReturn).ToListAsync());
 
-products.MapGet("/{id}", async (int id, ProductDb db) =>
-    await db.Products.FindAsync(id)
-        is Product product
-            ? Results.Ok(product)
-            : Results.NotFound());
+//products.MapGet("/{id}", async (int id, ProductDb db) =>
+//    await db.Products.FindAsync(id)
+//        is Product product
+//            ? Results.Ok(product)
+//            : Results.NotFound());
 
 products.MapPost("/", async (Product product, ProductDb db) =>
 {
     db.Products.Add(product);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/products/{product.Id}", product);
+    return Results.Created($"/products/{product.Id}", product); // inefficient: pictures are sent back again
 });
 
 products.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) =>
@@ -36,10 +36,11 @@ products.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) =>
 
     //product.OwnerId = inputProduct.OwnerId;
     //product.Category = inputProduct.Category;
-    product.ProductTitle = inputProduct.ProductTitle;
+    product.Title = inputProduct.Title;
     product.Description = inputProduct.Description;
     //product.IsSold = inputProduct.IsSold;
     product.RequiresSomethingInReturn = inputProduct.RequiresSomethingInReturn;
+    product.PrimaryPictureData = inputProduct.PrimaryPictureData;
 
 await db.SaveChangesAsync();
      

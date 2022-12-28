@@ -1,4 +1,6 @@
-﻿namespace TinderButForBarteringBackend
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace TinderButForBarteringBackend
 {
     class Product
     {
@@ -10,10 +12,14 @@
         //public picture[] AdditionalPictures { get; set; }
         //public bool IsSold { get; set; }
 
-
         public string Title { get; set; }
         public string Description { get; set; }
         public bool RequiresSomethingInReturn { get; set; }
+    }
+
+    class ProductWithPictureData : Product
+    {
+        [NotMapped]
         public byte[] PrimaryPictureData { get; set; }
     }
 }

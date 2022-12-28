@@ -3,6 +3,7 @@ using TinderButForBarteringBackend;
 using System.Drawing.Imaging;
 using System.Drawing;
 using System.IO;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ProductDb>(opt => opt.UseInMemoryDatabase("Products"));
@@ -23,7 +24,7 @@ products.MapGet("/", async (ProductDb db) =>
 //            ? Results.Ok(product)
 //            : Results.NotFound());
 
-products.MapPost("/", async (Product product, ProductDb db) =>
+products.MapPost("/", async (ProductWithPictureData product, ProductDb db) =>
 {
     db.Products.Add(product);
     await db.SaveChangesAsync();
@@ -33,10 +34,10 @@ products.MapPost("/", async (Product product, ProductDb db) =>
         image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
     }
 
-    return Results.Created($"/products/{product.Id}", product); // inefficient: pictures are sent back again
+    return Results.Created($"/products/{product.Id}", product as Product);
 });
 
-products.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) =>
+products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, ProductDb db) =>
 {
     var product = await db.Products.FindAsync(id);
 
@@ -48,9 +49,15 @@ products.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) =>
     product.Description = inputProduct.Description;
     //product.IsSold = inputProduct.IsSold;
     product.RequiresSomethingInReturn = inputProduct.RequiresSomethingInReturn;
-    product.PrimaryPictureData = inputProduct.PrimaryPictureData;
+    if (inputProduct.PrimaryPictureData != null)
+    {
+        using (Image image = Image.FromStream(new MemoryStream(inputProduct.PrimaryPictureData)))
+        {
+            image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
+        }
+    }
 
-await db.SaveChangesAsync();
+    await db.SaveChangesAsync();
      
     return Results.NoContent();
 });
@@ -61,6 +68,7 @@ products.MapDelete("/{id}", async (int id, ProductDb db) =>
     {
         db.Products.Remove(product);
         await db.SaveChangesAsync();
+        File.Delete($"Data/Images/{product.Id}.jpg");
         return Results.Ok(product);
     }
 

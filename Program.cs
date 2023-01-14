@@ -2,13 +2,33 @@ using Microsoft.EntityFrameworkCore;
 using TinderButForBarteringBackend;
 using System.Drawing.Imaging;
 using System.Drawing;
-using System.IO;
-using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<ProductDb>(opt => opt.UseInMemoryDatabase("Products"));
+builder.Services.AddDbContext<ProductDb>(opt => opt.UseInMemoryDatabase("Products")); // Change name?
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 var app = builder.Build();
+
+// add failure replies in several places
+
+app.MapPost("/onlogin", async (User incomingUser, ProductDb db) =>
+{
+    User? dbUser = await db.Users.FindAsync(incomingUser.Id);
+    if (dbUser == null) // User is new
+    {
+        db.Users.Add(incomingUser);
+        await db.SaveChangesAsync();
+        dbUser = incomingUser;
+    }
+    else if (dbUser.PictureUrl == null && incomingUser.PictureUrl != null) // User is old but picture is only supplied now
+    {
+        dbUser.PictureUrl = incomingUser.PictureUrl;
+        await db.SaveChangesAsync();
+    }
+
+    List<Product> ownProducts = db.Products.Where(t => true).ToList(); // Where(t => t.OwnerId == dbUser.Id).ToListAsync(); // OwnerID
+    List<Product> swipingProducts = db.Products.Where(t => true).ToList(); // Where(t => t.OwnerId != dbUser.Id).ToList(); // OwnerID // Tentative
+    return Results.Ok(new Tuple<User, List<Product>, List<Product>>(dbUser, ownProducts, swipingProducts));
+});
 
 var products = app.MapGroup("/products");
 
@@ -32,7 +52,7 @@ products.MapPost("/", async (ProductWithPictureData product, ProductDb db) =>
     using (Image image = Image.FromStream(new MemoryStream(product.PrimaryPictureData)))
     {
         image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
-    }
+    } 
 
     return Results.Created($"/products/{product.Id}", product as Product);
 });

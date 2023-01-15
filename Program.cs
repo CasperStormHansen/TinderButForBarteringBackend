@@ -25,8 +25,8 @@ app.MapPost("/onlogin", async (User incomingUser, ProductDb db) =>
         await db.SaveChangesAsync();
     }
 
-    List<Product> ownProducts = db.Products.Where(t => true).ToList(); // Where(t => t.OwnerId == dbUser.Id).ToListAsync(); // OwnerID
-    List<Product> swipingProducts = db.Products.Where(t => true).ToList(); // Where(t => t.OwnerId != dbUser.Id).ToList(); // OwnerID // Tentative
+    List<Product> ownProducts = db.Products.Where(t => t.OwnerId == dbUser.Id).ToList();
+    List<Product> swipingProducts = db.Products.Where(t => t.OwnerId != dbUser.Id).ToList(); // Tentative
     return Results.Ok(new Tuple<User, List<Product>, List<Product>>(dbUser, ownProducts, swipingProducts));
 });
 
@@ -63,7 +63,6 @@ products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, Pro
 
     if (product is null) return Results.NotFound();
 
-    //product.OwnerId = inputProduct.OwnerId;
     //product.Category = inputProduct.Category;
     product.Title = inputProduct.Title;
     product.Description = inputProduct.Description;

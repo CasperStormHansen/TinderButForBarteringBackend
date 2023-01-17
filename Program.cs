@@ -4,13 +4,16 @@ using System.Drawing.Imaging;
 using System.Drawing;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<ProductDb>(opt => opt.UseInMemoryDatabase("Products")); // Change name?
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+//builder.Services.AddDbContext<BarterDatabase>(opt => opt.UseInMemoryDatabase("Products")); // Change name?
+//builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 var app = builder.Build();
+
+using BarterDatabase db = new ();
 
 // add failure replies in several places
 
-app.MapPost("/onlogin", async (User incomingUser, ProductDb db) =>
+//app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
+app.MapPost("/onlogin", async (User incomingUser) =>
 {
     User? dbUser = await db.Users.FindAsync(incomingUser.Id);
     if (dbUser == null) // User is new
@@ -32,7 +35,8 @@ app.MapPost("/onlogin", async (User incomingUser, ProductDb db) =>
 
 var products = app.MapGroup("/products");
 
-products.MapGet("/", async (ProductDb db) =>
+//products.MapGet("/", async (BarterDatabase db) =>
+products.MapGet("/", async () =>
     await db.Products.ToListAsync());
 
 //products.MapGet("/return", async (ProductDb db) =>
@@ -44,7 +48,8 @@ products.MapGet("/", async (ProductDb db) =>
 //            ? Results.Ok(product)
 //            : Results.NotFound());
 
-products.MapPost("/", async (ProductWithPictureData product, ProductDb db) =>
+//products.MapPost("/", async (ProductWithPictureData product, BarterDatabase db) =>
+products.MapPost("/", async (ProductWithPictureData product) =>
 {
     db.Products.Add(product);
     await db.SaveChangesAsync();
@@ -52,12 +57,13 @@ products.MapPost("/", async (ProductWithPictureData product, ProductDb db) =>
     using (Image image = Image.FromStream(new MemoryStream(product.PrimaryPictureData)))
     {
         image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
-    } 
+    }
 
     return Results.Created($"/products/{product.Id}", product as Product);
 });
 
-products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, ProductDb db) =>
+//products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, BarterDatabase db) =>
+products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct) =>
 {
     var product = await db.Products.FindAsync(id);
 
@@ -77,11 +83,12 @@ products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, Pro
     }
 
     await db.SaveChangesAsync();
-     
+
     return Results.NoContent();
 });
 
-products.MapDelete("/{id}", async (int id, ProductDb db) =>
+//products.MapDelete("/{id}", async (int id, BarterDatabase db) =>
+products.MapDelete("/{id}", async (int id) =>
 {
     if (await db.Products.FindAsync(id) is Product product)
     {

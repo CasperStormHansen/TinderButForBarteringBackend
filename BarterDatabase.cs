@@ -19,10 +19,4 @@ class BarterDatabase : DbContext
     {
         DbPath = Path.Join("data/", "BarterDatabase.db");
     }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
-    {
-        options.UseSqlite($"Data Source={DbPath}");
-        //.EnableSensitiveDataLogging();
-    }
 }

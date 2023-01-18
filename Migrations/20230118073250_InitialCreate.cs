@@ -17,6 +17,7 @@ namespace TinderButForBarteringBackend.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     OwnerId = table.Column<string>(type: "TEXT", nullable: false),
+                    Category = table.Column<byte>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
                     RequiresSomethingInReturn = table.Column<bool>(type: "INTEGER", nullable: false)
@@ -32,7 +33,8 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
-                    PictureUrl = table.Column<string>(type: "TEXT", nullable: true)
+                    PictureUrl = table.Column<string>(type: "TEXT", nullable: true),
+                    Wishlist = table.Column<byte[]>(type: "BLOB", nullable: true)
                 },
                 constraints: table =>
                 {

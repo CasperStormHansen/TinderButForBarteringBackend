@@ -10,7 +10,7 @@ using TinderButForBarteringBackend;
 namespace TinderButForBarteringBackend.Migrations
 {
     [DbContext(typeof(BarterDatabase))]
-    [Migration("20230116222912_InitialCreate")]
+    [Migration("20230118073250_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -23,6 +23,9 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte>("Category")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
@@ -56,6 +59,9 @@ namespace TinderButForBarteringBackend.Migrations
 
                     b.Property<string>("PictureUrl")
                         .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Wishlist")
+                        .HasColumnType("BLOB");
 
                     b.HasKey("Id");
 

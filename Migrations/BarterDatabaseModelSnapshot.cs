@@ -22,6 +22,9 @@ namespace TinderButForBarteringBackend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<byte>("Category")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -53,6 +56,9 @@ namespace TinderButForBarteringBackend.Migrations
 
                     b.Property<string>("PictureUrl")
                         .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Wishlist")
+                        .HasColumnType("BLOB");
 
                     b.HasKey("Id");
 

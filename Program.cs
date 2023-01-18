@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TinderButForBarteringBackend;
 using System.Drawing.Imaging;
 using System.Drawing;
+using System.Collections;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<BarterDatabase>(opt => opt.UseSqlite("Data Source=data/BarterDatabase.db"));
@@ -15,9 +16,10 @@ app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
     User? dbUser = await db.Users.FindAsync(incomingUser.Id);
     if (dbUser == null) // User is new
     {
-        db.Users.Add(incomingUser);
-        await db.SaveChangesAsync();
         dbUser = incomingUser;
+        dbUser.Wishlist = Enumerable.Range(0, Product.Categories.Length).Select(i => (byte)i) .ToArray();
+        db.Users.Add(dbUser);
+        await db.SaveChangesAsync();
     }
     else if (dbUser.PictureUrl == null && incomingUser.PictureUrl != null) // User is old but picture is only supplied now
     {
@@ -26,7 +28,7 @@ app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
     }
 
     List<Product> ownProducts = db.Products.Where(t => t.OwnerId == dbUser.Id).ToList();
-    List<Product> swipingProducts = db.Products.Where(t => t.OwnerId != dbUser.Id).ToList(); // Tentative
+    List<Product> swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToList(); // tentative: returns ALL products in the user's wish-categories not owned by the user themself and ordered arbitrarily
     return Results.Ok(new Tuple<User, List<Product>, List<Product>>(dbUser, ownProducts, swipingProducts));
 });
 

@@ -27,9 +27,9 @@ app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
         await db.SaveChangesAsync();
     }
 
-    List<Product> ownProducts = db.Products.Where(t => t.OwnerId == dbUser.Id).ToList();
-    List<Product> swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToList(); // tentative: returns ALL products in the user's wish-categories not owned by the user themself and ordered arbitrarily
-    return Results.Ok(new Tuple<User, List<Product>, List<Product>, string[]>(dbUser, ownProducts, swipingProducts, Product.Categories));
+    Product[] ownProducts = db.Products.Where(t => t.OwnerId == dbUser.Id).ToArray();
+    Product[] swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToArray(); // tentative: returns ALL products in the user's wish-categories not owned by the user themself and ordered arbitrarily
+    return Results.Ok(new Tuple<User, Product[], Product[], string[]>(dbUser, ownProducts, swipingProducts, Product.Categories));
 });
 
 app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
@@ -38,7 +38,7 @@ app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
     dbUser.Wishlist = incomingUser.Wishlist;
     await db.SaveChangesAsync();
 
-    List<Product> swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToList(); // make seperate method
+    Product[] swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToArray(); // make seperate method
     return Results.Ok(swipingProducts);
 });
 

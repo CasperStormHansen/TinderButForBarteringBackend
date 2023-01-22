@@ -10,7 +10,7 @@ using TinderButForBarteringBackend;
 namespace TinderButForBarteringBackend.Migrations
 {
     [DbContext(typeof(BarterDatabase))]
-    [Migration("20230118073250_InitialCreate")]
+    [Migration("20230122033404_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -45,6 +45,8 @@ namespace TinderButForBarteringBackend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OwnerId");
+
                     b.ToTable("Products");
                 });
 
@@ -66,6 +68,17 @@ namespace TinderButForBarteringBackend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TinderButForBarteringBackend.Product", b =>
+                {
+                    b.HasOne("TinderButForBarteringBackend.User", "User")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

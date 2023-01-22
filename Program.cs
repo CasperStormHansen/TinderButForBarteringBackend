@@ -42,22 +42,10 @@ app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
     return Results.Ok(swipingProducts);
 });
 
-var products = app.MapGroup("/products");
-
-products.MapGet("/", async (BarterDatabase db) =>
-    await db.Products.ToListAsync());
-
-//products.MapGet("/return", async (ProductDb db) =>
-//    await db.Products.Where(t => t.RequiresSomethingInReturn).ToListAsync());
-
-//products.MapGet("/{id}", async (int id, ProductDb db) =>
-//    await db.Products.FindAsync(id)
-//        is Product product
-//            ? Results.Ok(product)
-//            : Results.NotFound());
-
-products.MapPost("/", async (ProductWithPictureData product, BarterDatabase db) =>
+app.MapPost("/newproduct", async (ProductWithPictureData product, BarterDatabase db) =>
 {
+    // dont show to table: add owner
+
     db.Products.Add(product);
     await db.SaveChangesAsync();
 
@@ -66,19 +54,18 @@ products.MapPost("/", async (ProductWithPictureData product, BarterDatabase db) 
         image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
     }
 
-    return Results.Created($"/products/{product.Id}", product as Product);
+    return Results.Ok(product as Product);
 });
 
-products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, BarterDatabase db) =>
+app.MapPut("/changeproduct/{id}", async (int id, ProductWithPictureData inputProduct, BarterDatabase db) =>
 {
     var product = await db.Products.FindAsync(id);
 
     if (product is null) return Results.NotFound();
 
-    //product.Category = inputProduct.Category;
+    product.Category = inputProduct.Category;
     product.Title = inputProduct.Title;
     product.Description = inputProduct.Description;
-    //product.IsSold = inputProduct.IsSold;
     product.RequiresSomethingInReturn = inputProduct.RequiresSomethingInReturn;
     if (inputProduct.PrimaryPictureData != null)
     {
@@ -93,7 +80,7 @@ products.MapPut("/{id}", async (int id, ProductWithPictureData inputProduct, Bar
     return Results.NoContent();
 });
 
-products.MapDelete("/{id}", async (int id, BarterDatabase db) =>
+app.MapDelete("/deleteproduct/{id}", async (int id, BarterDatabase db) =>
 {
     if (await db.Products.FindAsync(id) is Product product)
     {
@@ -106,7 +93,7 @@ products.MapDelete("/{id}", async (int id, BarterDatabase db) =>
     return Results.NotFound();
 });
 
-products.MapGet("/images/{filename}", async (string filename, HttpResponse response) =>
+app.MapGet("/images/{filename}", async (string filename, HttpResponse response) =>
 {
     var path = Path.Combine(@"Data/Images/", filename);
     var fileBytes = await File.ReadAllBytesAsync(path);

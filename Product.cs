@@ -1,23 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace TinderButForBarteringBackend;
 
 class Product
 {
-    [Key]
-    public int Id { get; set; }
-    [ForeignKey("User")] // should something be added to indicate that it's the Id column of the User table it refers to?
-    public string OwnerId { get; set; }
-    public byte Category { get; set; }
-    //public picture PrimaryPicture { get; set; }
-    //public picture[] AdditionalPictures { get; set; }
-    //public bool IsSold { get; set; }
-
-    public string Title { get; set; }
-    public string Description { get; set; }
-    public bool RequiresSomethingInReturn { get; set; }
-
     public static readonly string[] Categories = {
         "Dametøj str. S",
         "Dametøj str. M",
@@ -30,6 +18,17 @@ class Product
         "Værktøj",
         "Sportsudstyr",
     };
+
+    [Key]
+    public int Id { get; set; }
+    public string OwnerId { get; set; }
+    [JsonIgnore]
+    [ForeignKey("OwnerId")]
+    public virtual User User { get; set; }
+    public byte Category { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public bool RequiresSomethingInReturn { get; set; }
 }
 
 class ProductWithPictureData : Product

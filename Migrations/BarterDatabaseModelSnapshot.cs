@@ -42,6 +42,8 @@ namespace TinderButForBarteringBackend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OwnerId");
+
                     b.ToTable("Products");
                 });
 
@@ -63,6 +65,17 @@ namespace TinderButForBarteringBackend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TinderButForBarteringBackend.Product", b =>
+                {
+                    b.HasOne("TinderButForBarteringBackend.User", "User")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

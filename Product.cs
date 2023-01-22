@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace TinderButForBarteringBackend;
 
-class Product
+public class Product
 {
     public static readonly string[] Categories = {
         "Dametøj str. S",

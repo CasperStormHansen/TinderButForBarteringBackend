@@ -44,9 +44,11 @@ app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
 
 app.MapPost("/newproduct", async (ProductWithPictureData product, BarterDatabase db) =>
 {
-    // dont show to table: add owner
-
     db.Products.Add(product);
+    await db.SaveChangesAsync();
+
+    DontShowTo dontShowTo = new DontShowTo(product.OwnerId, product.Id);
+    db.DontShowTo.Add(dontShowTo);
     await db.SaveChangesAsync();
 
     using (Image image = Image.FromStream(new MemoryStream(product.PrimaryPictureData)))
@@ -91,6 +93,39 @@ app.MapDelete("/deleteproduct/{id}", async (int id, BarterDatabase db) =>
     }
 
     return Results.NotFound();
+});
+
+app.MapPost("/notoproduct", async (UserProductAttitude userProductAttitude, BarterDatabase db) =>
+{
+    DontShowTo dontShowTo = new DontShowTo(userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.DontShowTo.Add(dontShowTo);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+});
+
+app.MapPost("/yestoproduct", async (UserProductAttitude userProductAttitude, BarterDatabase db) =>
+{
+    DontShowTo dontShowTo = new (userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.DontShowTo.Add(dontShowTo);
+    IsInterested isInterested = new (userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.IsInterested.Add(isInterested);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+});
+
+app.MapPost("/willpayforproduct", async (UserProductAttitude userProductAttitude, BarterDatabase db) =>
+{
+    DontShowTo dontShowTo = new (userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.DontShowTo.Add(dontShowTo);
+    IsInterested isInterested = new (userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.IsInterested.Add(isInterested);
+    WillPay willPay = new (userProductAttitude.UserId, userProductAttitude.ProductId);
+    db.WillPay.Add(willPay);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
 });
 
 app.MapGet("/images/{filename}", async (string filename, HttpResponse response) =>

@@ -7,6 +7,7 @@ using System.Collections;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<BarterDatabase>(opt => opt.UseSqlite("Data Source=data/BarterDatabase.db"));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddSignalR();
 var app = builder.Build();
 
 // add failure replies in several places
@@ -135,5 +136,7 @@ app.MapGet("/images/{filename}", async (string filename, HttpResponse response) 
     response.ContentType = "image/jpeg";
     await response.Body.WriteAsync(fileBytes);
 });
+
+app.MapHub<ChatHub>("/chat");
 
 app.Run();

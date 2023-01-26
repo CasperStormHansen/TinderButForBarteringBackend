@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -25,6 +26,32 @@ namespace TinderButForBarteringBackend.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Match_database",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    UserId1 = table.Column<string>(type: "TEXT", nullable: false),
+                    UserId2 = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Match_database", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Match_database_Users_UserId1",
+                        column: x => x.UserId1,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Match_database_Users_UserId2",
+                        column: x => x.UserId2,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Products",
                 columns: table => new
                 {
@@ -42,6 +69,34 @@ namespace TinderButForBarteringBackend.Migrations
                     table.ForeignKey(
                         name: "FK_Products_Users_OwnerId",
                         column: x => x.OwnerId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Message_database",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    MatchId = table.Column<int>(type: "INTEGER", nullable: false),
+                    UserId = table.Column<string>(type: "TEXT", nullable: false),
+                    Content = table.Column<string>(type: "TEXT", nullable: false),
+                    DateTime = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Message_database", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Message_database_Match_database_MatchId",
+                        column: x => x.MatchId,
+                        principalTable: "Match_database",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Message_database_Users_UserId",
+                        column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -146,6 +201,26 @@ namespace TinderButForBarteringBackend.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Match_database_UserId1",
+                table: "Match_database",
+                column: "UserId1");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Match_database_UserId2",
+                table: "Match_database",
+                column: "UserId2");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Message_database_MatchId",
+                table: "Message_database",
+                column: "MatchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Message_database_UserId",
+                table: "Message_database",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Products_OwnerId",
                 table: "Products",
                 column: "OwnerId");
@@ -171,7 +246,13 @@ namespace TinderButForBarteringBackend.Migrations
                 name: "IsInterested");
 
             migrationBuilder.DropTable(
+                name: "Message_database");
+
+            migrationBuilder.DropTable(
                 name: "WillPay");
+
+            migrationBuilder.DropTable(
+                name: "Match_database");
 
             migrationBuilder.DropTable(
                 name: "Products");

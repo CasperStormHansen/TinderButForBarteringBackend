@@ -111,6 +111,30 @@ app.MapPost("/yestoproduct", async (UserProductAttitude userProductAttitude, Bar
     db.DontShowTo.Add(dontShowTo);
     IsInterested isInterested = new (userProductAttitude.UserId, userProductAttitude.ProductId);
     db.IsInterested.Add(isInterested);
+
+    string userId = userProductAttitude.UserId;
+    Product? product = db.Products
+        .Where(p => p.Id == userProductAttitude.ProductId)
+        .FirstOrDefault();
+    bool productStillExists = product != null;
+    if (productStillExists)
+    {
+        string ownerId = product.OwnerId;
+        bool mutualInterest = db.IsInterested
+            .Any(i => i.UserId == ownerId && i.Product.OwnerId == userId);
+        if (mutualInterest || !product.RequiresSomethingInReturn)
+        {
+            bool alreadyAMatch = db.Match_database
+                .Any(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId));
+            if (!alreadyAMatch)
+            {
+                Match_database newMatch = new (userId, ownerId);
+                db.Match_database.Add(newMatch);
+                // Then send message to the two users
+            }
+        }
+    }
+
     await db.SaveChangesAsync();
 
     return Results.NoContent();
@@ -124,6 +148,25 @@ app.MapPost("/willpayforproduct", async (UserProductAttitude userProductAttitude
     db.IsInterested.Add(isInterested);
     WillPay willPay = new (userProductAttitude.UserId, userProductAttitude.ProductId);
     db.WillPay.Add(willPay);
+
+    string userId = userProductAttitude.UserId;
+    Product? product = db.Products
+        .Where(p => p.Id == userProductAttitude.ProductId)
+        .FirstOrDefault();
+    bool productStillExists = product != null;
+    if (productStillExists)
+    {
+        string ownerId = product.OwnerId;
+        bool alreadyAMatch = db.Match_database
+            .Any(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId));
+        if (!alreadyAMatch)
+        {
+            Match_database newMatch = new(userId, ownerId);
+            db.Match_database.Add(newMatch);
+            // Then send message to the two users
+        }
+    }
+
     await db.SaveChangesAsync();
 
     return Results.NoContent();

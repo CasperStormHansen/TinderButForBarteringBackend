@@ -3,6 +3,8 @@ using TinderButForBarteringBackend;
 using System.Drawing.Imaging;
 using System.Drawing;
 using System.Collections;
+using System.Xml.Linq;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<BarterDatabase>(opt => opt.UseSqlite("Data Source=data/BarterDatabase.db"));
@@ -18,7 +20,7 @@ app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
     if (dbUser == null) // User is new
     {
         dbUser = incomingUser;
-        dbUser.Wishlist = Enumerable.Range(0, Product.Categories.Length).Select(i => (byte)i) .ToArray();
+        dbUser.Wishlist = Enumerable.Range(0, Product.Categories.Length).Select(i => (byte)i).ToArray();
         db.Users.Add(dbUser);
         await db.SaveChangesAsync();
     }
@@ -29,8 +31,39 @@ app.MapPost("/onlogin", async (User incomingUser, BarterDatabase db) =>
     }
 
     Product[] ownProducts = db.Products.Where(t => t.OwnerId == dbUser.Id).ToArray();
-    Product[] swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToArray(); // tentative: returns ALL products in the user's wish-categories not owned by the user themself and ordered arbitrarily
-    return Results.Ok(new Tuple<User, Product[], Product[], string[]>(dbUser, ownProducts, swipingProducts, Product.Categories));
+    Product[] swipingProducts = db.Products.Where(p => dbUser.Wishlist.Contains(p.Category) && !db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId)).ToArray();
+
+    Match[] matches1 = db.Match_database
+        .Include(m => m.User2)
+        .Where(m => m.UserId1 == dbUser.Id)
+        .Select(m => new Match(
+            m.Id,
+            m.User2.Name,
+            m.User2.PictureUrl,
+            db.IsInterested.Where(i => i.User == m.User2 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
+            db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User2).Select(i => i.Product).ToArray(),
+            db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+        ))
+        .AsSingleQuery()
+        .ToArray();
+
+    Match[] matches2 = db.Match_database
+        .Include(m => m.User1)
+        .Where(m => m.UserId2 == dbUser.Id)
+        .Select(m => new Match(
+            m.Id,
+            m.User1.Name,
+            m.User1.PictureUrl,
+            db.IsInterested.Where(i => i.User == m.User1 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
+            db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User1).Select(i => i.Product).ToArray(),
+            db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime) .Select(mes => new Message(mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+        ))
+        .AsSingleQuery()
+        .ToArray();
+
+    Match[] matches = matches1.Concat(matches2).ToArray();
+
+    return Results.Ok(new Tuple<User, Product[], Product[], string[], Match[]>(dbUser, ownProducts, swipingProducts, Product.Categories, matches));
 });
 
 app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
@@ -39,7 +72,7 @@ app.MapPost("/onwishesupdate", async (User incomingUser, BarterDatabase db) =>
     dbUser.Wishlist = incomingUser.Wishlist;
     await db.SaveChangesAsync();
 
-    Product[] swipingProducts = db.Products.Where(t => dbUser.Wishlist.Contains(t.Category) && t.OwnerId != dbUser.Id).ToArray(); // make seperate method
+    Product[] swipingProducts = db.Products.Where(p => dbUser.Wishlist.Contains(p.Category) && !db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId)).ToArray(); // make seperate method
     return Results.Ok(swipingProducts);
 });
 

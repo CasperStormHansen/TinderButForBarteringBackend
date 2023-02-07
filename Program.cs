@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<BarterDatabase>(opt => opt.UseSqlite("Data Source=data/BarterDatabase.db"));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddSignalR();
+//builder.Services.AddSingleton<ComHub>();
 var app = builder.Build();
 
 // add failure replies in several places
@@ -213,6 +214,6 @@ app.MapGet("/images/{filename}", async (string filename, HttpResponse response) 
     await response.Body.WriteAsync(fileBytes);
 });
 
-app.MapHub<ChatHub>("/chat");
+app.MapHub<ComHub>("/comhub");  
 
 app.Run();

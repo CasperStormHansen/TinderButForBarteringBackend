@@ -31,7 +31,7 @@ public class Product
     public bool RequiresSomethingInReturn { get; set; }
 }
 
-class ProductWithPictureData : Product
+public class ProductWithPictureData : Product
 {
     [NotMapped]
     public byte[] PrimaryPictureData { get; set; }

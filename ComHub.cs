@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing.Imaging;
 using System.Drawing;
@@ -8,8 +7,6 @@ namespace TinderButForBarteringBackend;
 
 public class ComHub : Hub
 {
-    private readonly ConcurrentDictionary<string, string> Connections = new();
-
     public readonly BarterDatabase Db;
 
     public ComHub(BarterDatabase db)
@@ -17,8 +14,15 @@ public class ComHub : Hub
         Db = db;
     }
 
+    private async Task RegisterUserIdOfConnection(string userId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, userId);
+    }
+
     public async Task<OnLoginData> OnLogin(User incomingUser)
     {
+        await RegisterUserIdOfConnection(incomingUser.Id);
+        
         User? dbUser = await Db.Users.FindAsync(incomingUser.Id);
         if (dbUser == null) // User is new
         {
@@ -32,8 +36,6 @@ public class ComHub : Hub
             dbUser.PictureUrl = incomingUser.PictureUrl;
             await Db.SaveChangesAsync();
         }
-
-        RegisterUserIdOfConnection(dbUser.Id); // TODO: Remove on logout and lost connection. Register on new connection without new login.
 
         Product[] ownProducts = Db.Products.Where(t => t.OwnerId == dbUser.Id).ToArray();
         Product[] swipingProducts = Db.Products.Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId)).ToArray();
@@ -209,21 +211,6 @@ public class ComHub : Hub
         }
 
         await Db.SaveChangesAsync();
-    }
-
-public void RegisterUserIdOfConnection(string userId)
-    {
-        Connections.TryAdd(Context.ConnectionId, userId);
-    }
-
-    public override Task OnDisconnectedAsync(Exception? exception)
-    {
-        return Disconnect(); // how to merge with next method?
-    }
-
-    public async Task Disconnect()
-    {
-        Connections.TryRemove(Context.ConnectionId, out string? _);
     }
 
     public async Task SendMessage(string message) // merely a test method

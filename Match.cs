@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace TinderButForBarteringBackend;
 
@@ -33,6 +34,14 @@ public class Message_database
     public virtual User User { get; set; }
     public string Content { get; set; }
     public DateTime DateTime { get; set; }
+
+    public Message_database(int matchId, string userId, string content, DateTime dateTime)
+    {
+        MatchId = matchId;
+        UserId = userId;
+        Content = content;
+        DateTime = dateTime;
+    }
 }
 
 public class Match
@@ -56,11 +65,15 @@ public class Match
 
 public class Message
 {
+    public int MatchId { get; set; }
     public bool Own { get; set; }
     public string Content { get; set; }
-    public DateTime DateTime { get; set; }
-    public Message(bool own, string content, DateTime dateTime)
+    public DateTime? DateTime { get; set; }
+
+    [JsonConstructor]
+    public Message(int matchId, bool own, string content, DateTime? dateTime)
     {
+        MatchId = matchId;
         Own = own;
         Content = content;
         DateTime = dateTime;

@@ -11,7 +11,7 @@ using TinderButForBarteringBackend;
 namespace TinderButForBarteringBackend.Migrations
 {
     [DbContext(typeof(BarterDatabase))]
-    [Migration("20230128120834_InitialCreate")]
+    [Migration("20230210162744_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

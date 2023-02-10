@@ -49,7 +49,7 @@ public class ComHub : Hub
                 m.User2.PictureUrl,
                 Db.IsInterested.Where(i => i.User == m.User2 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
                 Db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User2).Select(i => i.Product).ToArray(),
-                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
             ))
             .AsSingleQuery()
             .ToArray();
@@ -63,7 +63,7 @@ public class ComHub : Hub
                 m.User1.PictureUrl,
                 Db.IsInterested.Where(i => i.User == m.User1 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
                 Db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User1).Select(i => i.Product).ToArray(),
-                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
             ))
             .AsSingleQuery()
             .ToArray();
@@ -143,6 +143,25 @@ public class ComHub : Hub
         return true;
     }
 
+    public async Task<Message> SendMessage(Message message, string userId)
+    {
+        message.DateTime = DateTime.Now; // TODO: return should happen already here and the rest placed in a non-awaited async method
+
+        Message_database message_database = new (message.MatchId, userId, message.Content, (DateTime)message.DateTime);
+        Db.Message_database.Add(message_database);
+        await Db.SaveChangesAsync();
+
+        Message messageForOtherUser = message;
+        messageForOtherUser.Own = false;
+
+        Match_database match = await Db.Match_database.FindAsync(message.MatchId);
+        string otherUserId = match.UserId1 == userId ? match.UserId2 : match.UserId1;
+
+        await Clients.Group(otherUserId).SendAsync("ReceiveMessage", messageForOtherUser);
+
+        return message;
+    }
+
     public async Task NoToProduct(UserProductAttitude userProductAttitude)
     {
         DontShowTo dontShowTo = new DontShowTo(userProductAttitude.UserId, userProductAttitude.ProductId);
@@ -213,9 +232,9 @@ public class ComHub : Hub
         await Db.SaveChangesAsync();
     }
 
-    public async Task SendMessage(string message) // merely a test method
-    {
-        Console.WriteLine(message);
-        await Clients.All.SendAsync("MessageReceived", message);
-    }
+    //public async Task SendMessage(string message) // merely a test method
+    //{
+    //    Console.WriteLine(message);
+    //    await Clients.All.SendAsync("MessageReceived", message);
+    //}
 }

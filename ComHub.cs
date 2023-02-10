@@ -14,7 +14,7 @@ public class ComHub : Hub
         Db = db;
     }
 
-    private async Task RegisterUserIdOfConnection(string userId)
+    public async Task RegisterUserIdOfConnection(string userId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, userId);
     }

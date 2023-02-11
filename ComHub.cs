@@ -175,6 +175,7 @@ public class ComHub : Hub
         Db.DontShowTo.Add(dontShowTo);
         IsInterested isInterested = new(userProductAttitude.UserId, userProductAttitude.ProductId);
         Db.IsInterested.Add(isInterested);
+        await Db.SaveChangesAsync();
 
         string userId = userProductAttitude.UserId;
         Product? product = Db.Products
@@ -190,16 +191,22 @@ public class ComHub : Hub
             {
                 bool alreadyAMatch = Db.Match_database
                     .Any(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId));
-                if (!alreadyAMatch)
+                if (alreadyAMatch)
+                {
+                    int matchId = Db.Match_database
+                        .First(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId))
+                        .Id;
+                    await SendAddedProductToMatchToTwoUsers(userId, ownerId, product, matchId);
+                }
+                else
                 {
                     Match_database newMatch = new(userId, ownerId);
                     Db.Match_database.Add(newMatch);
-                    // Then send message to the two users
+                    await Db.SaveChangesAsync();
+                    await SendNewMatchToTwoUsers(userId, ownerId);
                 }
             }
         }
-
-        await Db.SaveChangesAsync();
     }
 
     public async Task WillPayForProduct(UserProductAttitude userProductAttitude)
@@ -210,6 +217,7 @@ public class ComHub : Hub
         Db.IsInterested.Add(isInterested);
         WillPay willPay = new(userProductAttitude.UserId, userProductAttitude.ProductId);
         Db.WillPay.Add(willPay);
+        await Db.SaveChangesAsync();
 
         string userId = userProductAttitude.UserId;
         Product? product = Db.Products
@@ -221,20 +229,57 @@ public class ComHub : Hub
             string ownerId = product.OwnerId;
             bool alreadyAMatch = Db.Match_database
                 .Any(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId));
-            if (!alreadyAMatch)
+            if (alreadyAMatch)
+            {
+                int matchId = Db.Match_database
+                    .First(m => (m.UserId1 == userId && m.UserId2 == ownerId) || (m.UserId1 == ownerId && m.UserId2 == userId))
+                    .Id;
+                await SendAddedProductToMatchToTwoUsers(userId, ownerId, product, matchId);
+            }
+            else
             {
                 Match_database newMatch = new(userId, ownerId);
                 Db.Match_database.Add(newMatch);
-                // Then send message to the two users
+                await Db.SaveChangesAsync();
+                await SendNewMatchToTwoUsers(userId, ownerId);
             }
         }
-
-        await Db.SaveChangesAsync();
     }
 
-    //public async Task SendMessage(string message) // merely a test method
-    //{
-    //    Console.WriteLine(message);
-    //    await Clients.All.SendAsync("MessageReceived", message);
-    //}
+    private async Task SendAddedProductToMatchToTwoUsers(string interestedUserId, string ownerId, Product product, int matchId)
+    {
+        await Clients.Group(interestedUserId).SendAsync("AddForeignProductToMatch", product, matchId);
+        await Clients.Group(ownerId).SendAsync("AddOwnProductToMatch", product.Id, matchId);
+    }
+
+    private async Task SendNewMatchToTwoUsers(string userId1, string userId2)
+    {
+        Match_database match_database = Db.Match_database
+            .Where(m => m.UserId1 == userId1 && m.UserId2 == userId2)
+            .FirstOrDefault();
+        User user1 = Db.Users.Find(userId1);
+        User user2 = Db.Users.Find(userId2);
+
+        Match matchForUser1 = new(
+            match_database.Id,
+            user2.Name,
+            user2.PictureUrl,
+            Db.IsInterested.Where(i => i.UserId == userId1 && i.Product.OwnerId == userId2).Select(i => i.ProductId).ToArray(), // is include of Product needed (here and next line)?
+            Db.IsInterested.Where(i => i.UserId == userId2 && i.Product.OwnerId == userId1).Select(i => i.Product).ToArray(),
+            Array.Empty<Message>()
+        );
+
+        await Clients.Group(userId1).SendAsync("ReceiveMatch", matchForUser1);
+
+        Match matchForUser2 = new(
+            match_database.Id,
+            user1.Name,
+            user1.PictureUrl,
+            Db.IsInterested.Where(i => i.UserId == userId2 && i.Product.OwnerId == userId1).Select(i => i.ProductId).ToArray(), // is include of Product needed (here and next line)?
+            Db.IsInterested.Where(i => i.UserId == userId1 && i.Product.OwnerId == userId2).Select(i => i.Product).ToArray(),
+            Array.Empty<Message>()
+        );
+
+        await Clients.Group(userId2).SendAsync("ReceiveMatch", matchForUser2);
+    }
 }

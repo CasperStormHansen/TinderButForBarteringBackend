@@ -124,7 +124,33 @@ public class ComHub : Hub
 
         await Db.SaveChangesAsync();
 
+        SendUpdatedProductToInterestedUsers(product);
+
         return true;
+    }
+
+    private async Task SendUpdatedProductToInterestedUsers(Product product)
+    {
+        (int,string)[] matchesAndUsers1 = Db.Match_database
+            .Where(m => m.UserId1 == product.OwnerId && Db.IsInterested.Any(i => i.UserId == m.UserId2 && i.ProductId == product.Id))
+            .Select(m => new { m.Id, m.UserId2 })
+            .AsEnumerable()
+            .Select(m => (m.Id, m.UserId2))
+            .ToArray();
+
+        (int, string)[] matchesAndUsers2 = Db.Match_database
+            .Where(m => m.UserId2 == product.OwnerId && Db.IsInterested.Any(i => i.UserId == m.UserId1 && i.ProductId == product.Id))
+            .Select(m => new { m.Id, m.UserId1 })
+            .AsEnumerable()
+            .Select(m => (m.Id, m.UserId1))
+            .ToArray();
+
+        (int, string)[] matchesAndUsers = matchesAndUsers1.Concat(matchesAndUsers2).ToArray();
+
+        foreach ((int matchId, string userId) in matchesAndUsers)
+        {
+            await Clients.Group(userId).SendAsync("UpdateForeignProductInMatch", product, matchId);
+        }
     }
 
     public async Task<bool> DeleteProduct(int productId)

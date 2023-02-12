@@ -14,6 +14,8 @@ public class ComHub : Hub
         Db = db;
     }
 
+    private static readonly int MaxSwipingProducts = 10;
+
     public async Task RegisterUserIdOfConnection(string userId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, userId);
@@ -38,7 +40,10 @@ public class ComHub : Hub
         }
 
         Product[] ownProducts = Db.Products.Where(t => t.OwnerId == dbUser.Id).ToArray();
-        Product[] swipingProducts = Db.Products.Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId)).ToArray();
+        Product[] swipingProducts = Db.Products
+            .Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId))
+            .Take(MaxSwipingProducts)
+            .ToArray(); // use method below
 
         Match[] matches1 = Db.Match_database
             .Include(m => m.User2)
@@ -80,7 +85,10 @@ public class ComHub : Hub
         dbUser.Wishlist = incomingUser.Wishlist;
         await Db.SaveChangesAsync();
 
-        Product[] swipingProducts = Db.Products.Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId)).ToArray(); // make seperate method
+        Product[] swipingProducts = Db.Products
+            .Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId))
+            .Take(MaxSwipingProducts)
+            .ToArray(); // use method below
         return swipingProducts;
     }
 
@@ -188,15 +196,23 @@ public class ComHub : Hub
         return message;
     }
 
-    public async Task NoToProduct(UserProductAttitude userProductAttitude)
+    public async Task<Product[]?> NoToProduct(OnSwipeData onSwipeData)
     {
+        UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
+        int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
+
         DontShowTo dontShowTo = new DontShowTo(userProductAttitude.UserId, userProductAttitude.ProductId);
         Db.DontShowTo.Add(dontShowTo);
         await Db.SaveChangesAsync();
+
+        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
     }
 
-    public async Task YesToProduct(UserProductAttitude userProductAttitude)
+    public async Task<Product[]?> YesToProduct(OnSwipeData onSwipeData)
     {
+        UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
+        int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
+
         DontShowTo dontShowTo = new(userProductAttitude.UserId, userProductAttitude.ProductId);
         Db.DontShowTo.Add(dontShowTo);
         IsInterested isInterested = new(userProductAttitude.UserId, userProductAttitude.ProductId);
@@ -233,10 +249,15 @@ public class ComHub : Hub
                 }
             }
         }
+
+        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
     }
 
-    public async Task WillPayForProduct(UserProductAttitude userProductAttitude)
+    public async Task<Product[]?> WillPayForProduct(OnSwipeData onSwipeData)
     {
+        UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
+        int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
+
         DontShowTo dontShowTo = new(userProductAttitude.UserId, userProductAttitude.ProductId);
         Db.DontShowTo.Add(dontShowTo);
         IsInterested isInterested = new(userProductAttitude.UserId, userProductAttitude.ProductId);
@@ -270,6 +291,30 @@ public class ComHub : Hub
                 await SendNewMatchToTwoUsers(userId, ownerId);
             }
         }
+
+        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
+    }
+
+    public Product[]? SwipingProducts(int[]? remainingSwipingProductIds, string userId)
+    {
+        if (remainingSwipingProductIds == null)
+        {
+            return null;
+        }
+        else
+        {
+            int numberOfRequestedProducts = MaxSwipingProducts - remainingSwipingProductIds.Length;
+            User user = Db.Users.Find(userId);
+
+            return Db.Products
+                .Where(p => 
+                    user.Wishlist.Contains(p.Category) 
+                    && !Db.DontShowTo.Any(d => userId == d.UserId && p.Id == d.ProductId)
+                    && !remainingSwipingProductIds.Any(pId => pId == p.Id)
+                )
+                .Take(numberOfRequestedProducts)
+                .ToArray();
+        }
     }
 
     private async Task SendAddedProductToMatchToTwoUsers(string interestedUserId, string ownerId, Product product, int matchId)
@@ -290,7 +335,7 @@ public class ComHub : Hub
             match_database.Id,
             user2.Name,
             user2.PictureUrl,
-            Db.IsInterested.Where(i => i.UserId == userId1 && i.Product.OwnerId == userId2).Select(i => i.ProductId).ToArray(), // is include of Product needed (here and next line)?
+            Db.IsInterested.Where(i => i.UserId == userId1 && i.Product.OwnerId == userId2).Select(i => i.ProductId).ToArray(),
             Db.IsInterested.Where(i => i.UserId == userId2 && i.Product.OwnerId == userId1).Select(i => i.Product).ToArray(),
             Array.Empty<Message>()
         );
@@ -301,7 +346,7 @@ public class ComHub : Hub
             match_database.Id,
             user1.Name,
             user1.PictureUrl,
-            Db.IsInterested.Where(i => i.UserId == userId2 && i.Product.OwnerId == userId1).Select(i => i.ProductId).ToArray(), // is include of Product needed (here and next line)?
+            Db.IsInterested.Where(i => i.UserId == userId2 && i.Product.OwnerId == userId1).Select(i => i.ProductId).ToArray(),
             Db.IsInterested.Where(i => i.UserId == userId1 && i.Product.OwnerId == userId2).Select(i => i.Product).ToArray(),
             Array.Empty<Message>()
         );

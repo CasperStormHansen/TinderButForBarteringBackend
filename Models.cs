@@ -183,4 +183,17 @@ public class WillPay : UserProductAttitude
     {
     }
 }
+
+public class OnSwipeData
+{
+    public UserProductAttitude UserProductAttitude { get; set; }
+    public int[]? RemainingSwipingProductIds { get; set; }
+
+    [JsonConstructor]
+    public OnSwipeData(UserProductAttitude userProductAttitude, int[]? remainingSwipingProductIds)
+    {
+        UserProductAttitude = userProductAttitude;
+        RemainingSwipingProductIds = remainingSwipingProductIds;
+    }
+}
 #nullable disable

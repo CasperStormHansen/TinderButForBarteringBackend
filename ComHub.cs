@@ -295,6 +295,11 @@ public class ComHub : Hub
         return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
     }
 
+    public async Task<Product[]?> OnRefreshMainpage(OnRefreshMainpageData onRefreshMainpageData)
+    {
+        return SwipingProducts(onRefreshMainpageData.RemainingSwipingProductIds, onRefreshMainpageData.UserId);
+    }
+
     public Product[]? SwipingProducts(int[]? remainingSwipingProductIds, string userId)
     {
         if (remainingSwipingProductIds == null)

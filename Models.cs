@@ -197,3 +197,16 @@ public class OnSwipeData
     }
 }
 #nullable disable
+
+public class OnRefreshMainpageData
+{
+    public string UserId { get; set; }
+    public int[] RemainingSwipingProductIds { get; set; }
+
+    [JsonConstructor]
+    public OnRefreshMainpageData(string userId, int[] remainingSwipingProductIds)
+    {
+        UserId = userId;
+        RemainingSwipingProductIds = remainingSwipingProductIds;
+    }
+}

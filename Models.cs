@@ -30,6 +30,8 @@ public class Product
     public string Title { get; set; }
     public string Description { get; set; }
     public bool RequiresSomethingInReturn { get; set; }
+    [JsonIgnore]
+    public DateTime? UpdateTime { get; set; }
 }
 
 public class ProductWithPictureData : Product
@@ -45,14 +47,13 @@ public class User
     public string Name { get; set; }
     public string? PictureUrl { get; set; }
     public byte[]? Wishlist { get; set; }
-    //[JsonIgnore]
-    //public int[]? LastSwipingProductsBatch { get; set; }
 }
 
 public class Match_database
 {
     [Key]
     public int Id { get; set; }
+    public DateTime CreationTime { get; set; }
     public string UserId1 { get; set; }
     [ForeignKey("UserId1")]
     public virtual User User1 { get; set; }
@@ -62,6 +63,7 @@ public class Match_database
 
     public Match_database(string userId1, string userId2)
     {
+        CreationTime = DateTime.Now;
         UserId1 = userId1;
         UserId2 = userId2;
     }
@@ -143,10 +145,27 @@ public class OnLoginData
     }
 }
 
+public class OnReconnectionData
+{
+    public Match[] NewMatches { get; set; }
+    public Product[] UpdatedForeignProducts { get; set; }
+    public MatchIdAndProductId[] NewInterestsInOwnProducts { get; set; }
+    public Message[] NewMessages { get; set; }
+
+    public OnReconnectionData(Match[] newMatches, Product[] updatedForeignProducts, MatchIdAndProductId[] newInterestsInOwnProducts, Message[] newMessages)
+    {
+        NewMatches = newMatches;
+        UpdatedForeignProducts = updatedForeignProducts;
+        NewInterestsInOwnProducts = newInterestsInOwnProducts;
+        NewMessages = newMessages;
+    }
+}
+
 public class UserProductAttitude
 {
     [Key]
     public int Id { get; set; }
+    public DateTime CreationTime { get; set; }
 
     public string UserId { get; set; }
     [JsonIgnore]
@@ -160,6 +179,7 @@ public class UserProductAttitude
 
     public UserProductAttitude(string userId, int productId)
     {
+        CreationTime = DateTime.Now;
         UserId = userId;
         ProductId = productId;
     }
@@ -208,5 +228,45 @@ public class OnRefreshMainpageData
     {
         UserId = userId;
         RemainingSwipingProductIds = remainingSwipingProductIds;
+    }
+}
+
+public class UserAndLastUpdate
+{
+    public string UserId { get; set; }
+    public DateTime LastUpdate { get; set; }
+
+    [JsonConstructor]
+    public UserAndLastUpdate(string userId, DateTime lastUpdate)
+    {
+        UserId = userId;
+        LastUpdate = lastUpdate;
+    }
+}
+
+public class MatchIdAndProductId
+{
+    public int MatchId { get; set; }
+    public int ProductId { get; set; }
+
+    [JsonConstructor]
+    public MatchIdAndProductId(int matchId, int productId)
+    {
+        MatchId = matchId;
+        ProductId = productId;
+    }
+
+    public MatchIdAndProductId(UserProductAttitude userProductAttitude, (int, string)[] matchIdsWithUserIds)
+    {
+        string relevantUserId = userProductAttitude.UserId;
+        foreach ((int matchId, string userId) in matchIdsWithUserIds)
+        {
+            if (userId == relevantUserId)
+            {
+                MatchId = matchId;
+                break;
+            }
+        }
+        ProductId = userProductAttitude.ProductId;
     }
 }

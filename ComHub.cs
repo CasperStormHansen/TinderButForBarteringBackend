@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Drawing.Imaging;
 using System.Drawing;
+using System.Linq;
 
 namespace TinderButForBarteringBackend;
 
@@ -16,7 +17,7 @@ public class ComHub : Hub
 
     private static readonly int MaxSwipingProducts = 10;
 
-    public async Task RegisterUserIdOfConnection(string userId)
+    private async Task RegisterUserIdOfConnection(string userId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, userId);
     }
@@ -24,7 +25,7 @@ public class ComHub : Hub
     public async Task<OnLoginData> OnLogin(User incomingUser)
     {
         await RegisterUserIdOfConnection(incomingUser.Id);
-        
+
         User? dbUser = await Db.Users.FindAsync(incomingUser.Id);
         if (dbUser == null) // User is new
         {
@@ -45,38 +46,91 @@ public class ComHub : Hub
             .Take(MaxSwipingProducts)
             .ToArray(); // use method below
 
+        Match[] matches = Matches(dbUser.Id);
+
+        OnLoginData onLoginData = new(dbUser, ownProducts, swipingProducts, Product.Categories, matches);
+        return onLoginData;
+    }
+
+    public async Task<OnReconnectionData> OnReconnection(UserAndLastUpdate userAndLastUpdate)
+    {
+        string userId = userAndLastUpdate.UserId;
+        DateTime lastUpdate = userAndLastUpdate.LastUpdate;
+
+        await RegisterUserIdOfConnection(userId);
+
+        Match[] newMatches = Matches(userId, lastUpdate);
+
+        (int, string)[] oldMatchesAndUsers1 = Db.Match_database
+            .Where(m => m.UserId1 == userId && m.CreationTime <= lastUpdate)
+            .Select(m => new { m.Id, m.UserId2 })
+            .AsEnumerable()
+            .Select(m => (m.Id, m.UserId2))
+            .ToArray();
+        (int, string)[] oldMatchesAndUsers2 = Db.Match_database
+            .Where(m => m.UserId2 == userId && m.CreationTime <= lastUpdate)
+            .Select(m => new { m.Id, m.UserId1 })
+            .AsEnumerable()
+            .Select(m => (m.Id, m.UserId1))
+            .ToArray();
+        (int, string)[] oldMatchesAndUsers = oldMatchesAndUsers1.Concat(oldMatchesAndUsers2).ToArray();
+        int[] oldMatchesIds = oldMatchesAndUsers.Select(x => x.Item1).ToArray();
+        string[] oldMatchesOtherUserIds = oldMatchesAndUsers.Select(x => x.Item2).ToArray();
+
+        Product[] updatedForeignProducts = Db.Products
+            .Where(p => oldMatchesOtherUserIds.Contains(p.OwnerId) && p.UpdateTime > lastUpdate && Db.IsInterested.Any(i => i.UserId == userId && i.ProductId == p.Id))
+            .ToArray();
+
+        int[] ownProductIds = Db.Products
+            .Where(p => p.OwnerId == userId)
+            .Select(p => p.Id)
+            .ToArray();
+
+        UserProductAttitude[] newInterestsInOwnProducts = Db.IsInterested
+            .Where(i => oldMatchesOtherUserIds.Contains(i.UserId) && i.CreationTime > lastUpdate && ownProductIds.Contains(i.ProductId))
+            .ToArray();
+
+        Message[] newMessages = Db.Message_database
+            .Where(m => oldMatchesIds.Contains(m.MatchId) && m.DateTime > lastUpdate)
+            .Select(m => new Message(m.MatchId, m.UserId == userId, m.Content, m.DateTime))
+            .ToArray();
+
+        OnReconnectionData onReconnectionData = new(newMatches, updatedForeignProducts, newInterestsInOwnProducts, newMessages);
+        return onReconnectionData;
+    }
+
+    private Match[] Matches(string userId, DateTime createdAfter = default)
+    {
         Match[] matches1 = Db.Match_database
             .Include(m => m.User2)
-            .Where(m => m.UserId1 == dbUser.Id)
+            .Where(m => m.UserId1 == userId && m.CreationTime > createdAfter)
             .Select(m => new Match(
                 m.Id,
                 m.User2.Name,
                 m.User2.PictureUrl,
-                Db.IsInterested.Where(i => i.User == m.User2 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
-                Db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User2).Select(i => i.Product).ToArray(),
-                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+                Db.IsInterested.Where(i => i.User == m.User2 && i.Product.OwnerId == userId).Select(i => i.ProductId).ToArray(),
+                Db.IsInterested.Where(i => i.UserId == userId && i.Product.User == m.User2).Select(i => i.Product).ToArray(),
+                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.UserId == userId, mes.Content, mes.DateTime)).ToArray()
             ))
             .AsSingleQuery()
             .ToArray();
 
         Match[] matches2 = Db.Match_database
             .Include(m => m.User1)
-            .Where(m => m.UserId2 == dbUser.Id)
+            .Where(m => m.UserId2 == userId && m.CreationTime > createdAfter)
             .Select(m => new Match(
                 m.Id,
                 m.User1.Name,
                 m.User1.PictureUrl,
-                Db.IsInterested.Where(i => i.User == m.User1 && i.Product.User == dbUser).Select(i => i.ProductId).ToArray(),
-                Db.IsInterested.Where(i => i.User == dbUser && i.Product.User == m.User1).Select(i => i.Product).ToArray(),
-                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.User == dbUser, mes.Content, mes.DateTime)).ToArray()
+                Db.IsInterested.Where(i => i.User == m.User1 && i.Product.OwnerId == userId).Select(i => i.ProductId).ToArray(),
+                Db.IsInterested.Where(i => i.UserId == userId && i.Product.User == m.User1).Select(i => i.Product).ToArray(),
+                Db.Message_database.Where(mes => mes.MatchId == m.Id).OrderBy(mes => mes.DateTime).Select(mes => new Message(mes.MatchId, mes.UserId == userId, mes.Content, mes.DateTime)).ToArray()
             ))
             .AsSingleQuery()
             .ToArray();
 
         Match[] matches = matches1.Concat(matches2).ToArray();
-
-        OnLoginData onLoginData = new(dbUser, ownProducts, swipingProducts, Product.Categories, matches);
-        return onLoginData;
+        return matches;
     }
 
     public async Task<Product[]> OnWishesUpdate(User incomingUser)
@@ -94,6 +148,8 @@ public class ComHub : Hub
 
     public async Task<Product> NewProduct(ProductWithPictureData product)
     {
+        product.UpdateTime = DateTime.Now;
+
         Db.Products.Add(product);
         await Db.SaveChangesAsync();
 
@@ -118,6 +174,7 @@ public class ComHub : Hub
             return false; // TODO: Throw exception? Will that automatically be sent to frontend?
         }
 
+        product.UpdateTime = DateTime.Now;
         product.Category = inputProduct.Category;
         product.Title = inputProduct.Title;
         product.Description = inputProduct.Description;
@@ -139,7 +196,7 @@ public class ComHub : Hub
 
     private async Task SendUpdatedProductToInterestedUsers(Product product)
     {
-        (int,string)[] matchesAndUsers1 = Db.Match_database
+        (int, string)[] matchesAndUsers1 = Db.Match_database
             .Where(m => m.UserId1 == product.OwnerId && Db.IsInterested.Any(i => i.UserId == m.UserId2 && i.ProductId == product.Id))
             .Select(m => new { m.Id, m.UserId2 })
             .AsEnumerable()
@@ -181,7 +238,7 @@ public class ComHub : Hub
     {
         message.DateTime = DateTime.Now; // TODO: return should happen already here and the rest placed in a non-awaited async method
 
-        Message_database message_database = new (message.MatchId, userId, message.Content, (DateTime)message.DateTime);
+        Message_database message_database = new(message.MatchId, userId, message.Content, (DateTime)message.DateTime);
         Db.Message_database.Add(message_database);
         await Db.SaveChangesAsync();
 
@@ -312,8 +369,8 @@ public class ComHub : Hub
             User user = Db.Users.Find(userId);
 
             return Db.Products
-                .Where(p => 
-                    user.Wishlist.Contains(p.Category) 
+                .Where(p =>
+                    user.Wishlist.Contains(p.Category)
                     && !Db.DontShowTo.Any(d => userId == d.UserId && p.Id == d.ProductId)
                     && !remainingSwipingProductIds.Any(pId => pId == p.Id)
                 )

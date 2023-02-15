@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace TinderButForBarteringBackend;
 
-#nullable enable
 public class Product
 {
     public static readonly string[] Categories = {
@@ -22,6 +21,7 @@ public class Product
 
     [Key]
     public int Id { get; set; }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public string OwnerId { get; set; }
     [JsonIgnore]
     [ForeignKey("OwnerId")]
@@ -29,10 +29,14 @@ public class Product
     public byte Category { get; set; }
     public string Title { get; set; }
     public string Description { get; set; }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public bool RequiresSomethingInReturn { get; set; }
+#nullable enable
     [JsonIgnore]
     public DateTime? UpdateTime { get; set; }
+#nullable disable
 }
+
 
 public class ProductWithPictureData : Product
 {
@@ -45,8 +49,10 @@ public class User
     [Key]
     public string Id { get; set; }
     public string Name { get; set; }
+#nullable enable
     public string? PictureUrl { get; set; }
     public byte[]? Wishlist { get; set; }
+#nullable disable
 }
 
 public class Match_database
@@ -95,10 +101,13 @@ public class Match
 {
     public int MatchId { get; set; }
     public string Name { get; set; }
+#nullable enable
     public string? PictureUrl { get; set; }
+#nullable disable
     public int[] OwnProductIds { get; set; }
     public Product[] ForeignProducts { get; set; }
     public Message[] Messages { get; set; }
+#nullable enable
     public Match(int matchId, string name, string? pictureUrl, int[] ownProductIds, Product[] foreignProducts, Message[] messages)
     {
         MatchId = matchId;
@@ -108,6 +117,7 @@ public class Match
         ForeignProducts = foreignProducts;
         Messages = messages;
     }
+#nullable disable
 }
 
 public class Message
@@ -115,6 +125,7 @@ public class Message
     public int MatchId { get; set; }
     public bool Own { get; set; }
     public string Content { get; set; }
+#nullable enable
     public DateTime? DateTime { get; set; }
 
     [JsonConstructor]
@@ -125,6 +136,7 @@ public class Message
         Content = content;
         DateTime = dateTime;
     }
+#nullable disable
 }
 
 public class OnLoginData
@@ -207,6 +219,7 @@ public class WillPay : UserProductAttitude
 public class OnSwipeData
 {
     public UserProductAttitude UserProductAttitude { get; set; }
+#nullable enable
     public int[]? RemainingSwipingProductIds { get; set; }
 
     [JsonConstructor]
@@ -215,8 +228,8 @@ public class OnSwipeData
         UserProductAttitude = userProductAttitude;
         RemainingSwipingProductIds = remainingSwipingProductIds;
     }
-}
 #nullable disable
+}
 
 public class OnRefreshMainpageData
 {
@@ -268,5 +281,24 @@ public class MatchIdAndProductId
             }
         }
         ProductId = userProductAttitude.ProductId;
+    }
+}
+
+public class TimeStamped<T>
+{
+    public T Value { get; set; }
+    public DateTime SendTime { get; set; }
+
+    public TimeStamped(T value)
+    {
+        Value = value;
+        SendTime = DateTime.Now;
+    }
+
+    [JsonConstructor]
+    public TimeStamped(T value, DateTime sendTime)
+    {
+        Value = value;
+        SendTime = sendTime;
     }
 }

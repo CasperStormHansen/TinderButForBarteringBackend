@@ -22,7 +22,7 @@ public class ComHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, userId);
     }
 
-    public async Task<OnLoginData> OnLogin(User incomingUser)
+    public async Task<TimeStamped<OnLoginData>> OnLogin(User incomingUser)
     {
         await RegisterUserIdOfConnection(incomingUser.Id);
 
@@ -42,17 +42,17 @@ public class ComHub : Hub
 
         Product[] ownProducts = Db.Products.Where(t => t.OwnerId == dbUser.Id).ToArray();
         Product[] swipingProducts = Db.Products
-            .Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId))
+            .Where(p => dbUser!.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId))
             .Take(MaxSwipingProducts)
             .ToArray(); // use method below
 
         Match[] matches = Matches(dbUser.Id);
 
         OnLoginData onLoginData = new(dbUser, ownProducts, swipingProducts, Product.Categories, matches);
-        return onLoginData;
+        return new TimeStamped<OnLoginData>(onLoginData);
     }
 
-    public async Task<OnReconnectionData> OnReconnection(UserAndLastUpdate userAndLastUpdate)
+    public async Task<TimeStamped<OnReconnectionData>> OnReconnection(UserAndLastUpdate userAndLastUpdate)
     {
         string userId = userAndLastUpdate.UserId;
         DateTime lastUpdate = userAndLastUpdate.LastUpdate;
@@ -86,8 +86,9 @@ public class ComHub : Hub
             .Select(p => p.Id)
             .ToArray();
 
-        UserProductAttitude[] newInterestsInOwnProducts = Db.IsInterested
+        MatchIdAndProductId[] newInterestsInOwnProducts = Db.IsInterested
             .Where(i => oldMatchesOtherUserIds.Contains(i.UserId) && i.CreationTime > lastUpdate && ownProductIds.Contains(i.ProductId))
+            .Select(i => new MatchIdAndProductId(i, oldMatchesAndUsers))
             .ToArray();
 
         Message[] newMessages = Db.Message_database
@@ -96,7 +97,7 @@ public class ComHub : Hub
             .ToArray();
 
         OnReconnectionData onReconnectionData = new(newMatches, updatedForeignProducts, newInterestsInOwnProducts, newMessages);
-        return onReconnectionData;
+        return new TimeStamped<OnReconnectionData>(onReconnectionData);
     }
 
     private Match[] Matches(string userId, DateTime createdAfter = default)
@@ -133,7 +134,7 @@ public class ComHub : Hub
         return matches;
     }
 
-    public async Task<Product[]> OnWishesUpdate(User incomingUser)
+    public async Task<TimeStamped<Product[]>> OnWishesUpdate(User incomingUser)
     {
         User dbUser = await Db.Users.FindAsync(incomingUser.Id);
         dbUser.Wishlist = incomingUser.Wishlist;
@@ -143,10 +144,11 @@ public class ComHub : Hub
             .Where(p => dbUser.Wishlist.Contains(p.Category) && !Db.DontShowTo.Any(d => dbUser.Id == d.UserId && p.Id == d.ProductId))
             .Take(MaxSwipingProducts)
             .ToArray(); // use method below
-        return swipingProducts;
+
+        return new TimeStamped<Product[]>(swipingProducts);
     }
 
-    public async Task<Product> NewProduct(ProductWithPictureData product)
+    public async Task<TimeStamped<Product>> NewProduct(ProductWithPictureData product)
     {
         product.UpdateTime = DateTime.Now;
 
@@ -162,16 +164,18 @@ public class ComHub : Hub
             image.Save($"Data/Images/{product.Id}.jpg", ImageFormat.Jpeg);
         }
 
-        return product as Product;
+        Product returnProduct = product as Product;
+
+        return new TimeStamped<Product>(returnProduct);
     }
 
-    public async Task<bool> ChangeProduct(ProductWithPictureData inputProduct)
+    public async Task<TimeStamped<bool>> ChangeProduct(ProductWithPictureData inputProduct)
     {
         var product = await Db.Products.FindAsync(inputProduct.Id);
 
         if (product is null)
         {
-            return false; // TODO: Throw exception? Will that automatically be sent to frontend?
+            return new TimeStamped<bool>(false); // TODO: Throw exception? Will that automatically be sent to frontend?
         }
 
         product.UpdateTime = DateTime.Now;
@@ -191,7 +195,7 @@ public class ComHub : Hub
 
         SendUpdatedProductToInterestedUsers(product);
 
-        return true;
+        return new TimeStamped<bool>(true);
     }
 
     private async Task SendUpdatedProductToInterestedUsers(Product product)
@@ -214,27 +218,27 @@ public class ComHub : Hub
 
         foreach ((int matchId, string userId) in matchesAndUsers)
         {
-            await Clients.Group(userId).SendAsync("UpdateForeignProductInMatch", product, matchId);
+            await Clients.Group(userId).SendAsync("UpdateForeignProductInMatch", DateTime.Now, product, matchId);
         }
     }
 
-    public async Task<bool> DeleteProduct(int productId)
+    public async Task<TimeStamped<bool>> DeleteProduct(int productId)
     {
         var product = await Db.Products.FindAsync(productId);
 
         if (product is null)
         {
-            return false; // TODO: Throw exception? Will that automatically be sent to frontend?
+            return new TimeStamped<bool>(false);// TODO: Throw exception? Will that automatically be sent to frontend?
         }
 
         Db.Products.Remove(product);
         await Db.SaveChangesAsync();
         File.Delete($"Data/Images/{product.Id}.jpg");
 
-        return true;
+        return new TimeStamped<bool>(true);
     }
 
-    public async Task<Message> SendMessage(Message message, string userId)
+    public async Task<TimeStamped<Message>> SendMessage(Message message, string userId)
     {
         message.DateTime = DateTime.Now; // TODO: return should happen already here and the rest placed in a non-awaited async method
 
@@ -248,12 +252,12 @@ public class ComHub : Hub
         Match_database match = await Db.Match_database.FindAsync(message.MatchId);
         string otherUserId = match.UserId1 == userId ? match.UserId2 : match.UserId1;
 
-        await Clients.Group(otherUserId).SendAsync("ReceiveMessage", messageForOtherUser);
+        await Clients.Group(otherUserId).SendAsync("ReceiveMessage", DateTime.Now, messageForOtherUser);
 
-        return message;
+        return new TimeStamped<Message>(message);
     }
 
-    public async Task<Product[]?> NoToProduct(OnSwipeData onSwipeData)
+    public async Task<TimeStamped<Product[]?>> NoToProduct(OnSwipeData onSwipeData)
     {
         UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
         int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
@@ -262,10 +266,10 @@ public class ComHub : Hub
         Db.DontShowTo.Add(dontShowTo);
         await Db.SaveChangesAsync();
 
-        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
+        return new TimeStamped<Product[]?>(SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId));
     }
 
-    public async Task<Product[]?> YesToProduct(OnSwipeData onSwipeData)
+    public async Task<TimeStamped<Product[]?>> YesToProduct(OnSwipeData onSwipeData)
     {
         UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
         int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
@@ -307,10 +311,10 @@ public class ComHub : Hub
             }
         }
 
-        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
+        return new TimeStamped<Product[]?>(SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId));
     }
 
-    public async Task<Product[]?> WillPayForProduct(OnSwipeData onSwipeData)
+    public async Task<TimeStamped<Product[]?>> WillPayForProduct(OnSwipeData onSwipeData)
     {
         UserProductAttitude userProductAttitude = onSwipeData.UserProductAttitude;
         int[]? remainingSwipingProductIds = onSwipeData.RemainingSwipingProductIds;
@@ -349,12 +353,12 @@ public class ComHub : Hub
             }
         }
 
-        return SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId);
+        return new TimeStamped<Product[]?>(SwipingProducts(remainingSwipingProductIds, userProductAttitude.UserId));
     }
 
-    public async Task<Product[]?> OnRefreshMainpage(OnRefreshMainpageData onRefreshMainpageData)
+    public async Task<TimeStamped<Product[]?>> OnRefreshMainpage(OnRefreshMainpageData onRefreshMainpageData)
     {
-        return SwipingProducts(onRefreshMainpageData.RemainingSwipingProductIds, onRefreshMainpageData.UserId);
+        return new TimeStamped<Product[]?>(SwipingProducts(onRefreshMainpageData.RemainingSwipingProductIds, onRefreshMainpageData.UserId));
     }
 
     public Product[]? SwipingProducts(int[]? remainingSwipingProductIds, string userId)
@@ -381,8 +385,8 @@ public class ComHub : Hub
 
     private async Task SendAddedProductToMatchToTwoUsers(string interestedUserId, string ownerId, Product product, int matchId)
     {
-        await Clients.Group(interestedUserId).SendAsync("AddForeignProductToMatch", product, matchId);
-        await Clients.Group(ownerId).SendAsync("AddOwnProductToMatch", product.Id, matchId);
+        await Clients.Group(interestedUserId).SendAsync("AddForeignProductToMatch", DateTime.Now, product, matchId);
+        await Clients.Group(ownerId).SendAsync("AddOwnProductToMatch", DateTime.Now, product.Id, matchId);
     }
 
     private async Task SendNewMatchToTwoUsers(string userId1, string userId2)
@@ -402,7 +406,7 @@ public class ComHub : Hub
             Array.Empty<Message>()
         );
 
-        await Clients.Group(userId1).SendAsync("ReceiveMatch", matchForUser1);
+        await Clients.Group(userId1).SendAsync("ReceiveMatch", DateTime.Now, matchForUser1);
 
         Match matchForUser2 = new(
             match_database.Id,
@@ -413,6 +417,6 @@ public class ComHub : Hub
             Array.Empty<Message>()
         );
 
-        await Clients.Group(userId2).SendAsync("ReceiveMatch", matchForUser2);
+        await Clients.Group(userId2).SendAsync("ReceiveMatch", DateTime.Now, matchForUser2);
     }
 }

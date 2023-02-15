@@ -31,6 +31,7 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    CreationTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UserId1 = table.Column<string>(type: "TEXT", nullable: false),
                     UserId2 = table.Column<string>(type: "TEXT", nullable: false)
                 },
@@ -61,7 +62,8 @@ namespace TinderButForBarteringBackend.Migrations
                     Category = table.Column<byte>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
-                    RequiresSomethingInReturn = table.Column<bool>(type: "INTEGER", nullable: false)
+                    RequiresSomethingInReturn = table.Column<bool>(type: "INTEGER", nullable: false),
+                    UpdateTime = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -108,6 +110,7 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    CreationTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false),
                     ProductId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -134,6 +137,7 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    CreationTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false),
                     ProductId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -160,6 +164,7 @@ namespace TinderButForBarteringBackend.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    CreationTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false),
                     ProductId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
